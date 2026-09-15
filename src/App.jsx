@@ -51,7 +51,7 @@ const weatherCodes = {
   99: 'Trovoada com granizo forte',
 };
 
-const API_URL = 'http://localhost:3001/api/compromissos';
+const API_URL = '/api/compromissos';
 
 function App() {
   const [formData, setFormData] = useState({ nome: '', cidade: '', compromisso: '' });
