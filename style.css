@@ -1,0 +1,137 @@
+* {
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: 'Poppins', sans-serif;
+    background: #f4f9f5;
+    color: #1d2b1d;
+}
+
+.hero {
+    background: linear-gradient(rgba(0, 80, 50, 0.72), rgba(0, 50, 30, 0.78)),
+        url("assets/img/banner.jpg");
+    background-size: cover;
+    background-position: center;
+    min-height: 100vh;
+    padding-top: 90px;
+}
+
+.hero h1 {
+    font-size: clamp(2.2rem, 5vw, 4rem);
+}
+
+.hero p {
+    font-size: 1.2rem;
+}
+
+section {
+    scroll-margin-top: 80px;
+}
+
+.card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border: none;
+    border-radius: 18px;
+    box-shadow: 0 12px 25px rgba(25, 135, 84, 0.12);
+}
+
+.card:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 18px 30px rgba(25, 135, 84, 0.18);
+}
+
+.info-card {
+    background: linear-gradient(135deg, #198754, #1aa96b);
+    color: white;
+    padding: 30px 20px;
+    border-radius: 18px;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.12);
+    min-height: 180px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.info-card h2 {
+    font-size: clamp(1.8rem, 3vw, 2.6rem);
+    font-weight: 700;
+}
+
+.weather-panel,
+.result-card {
+    background: white;
+    border-radius: 20px;
+    padding: 28px;
+    box-shadow: 0 12px 30px rgba(17, 46, 32, 0.08);
+    height: 100%;
+}
+
+.result-card {
+    background: linear-gradient(135deg, #ecfdf5, #dff7ea);
+    border: 1px solid rgba(25, 135, 84, 0.12);
+}
+
+.result-card h3 {
+    color: #0f5132;
+    margin-bottom: 18px;
+}
+
+.result-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-top: 18px;
+}
+
+.metric-box {
+    background: white;
+    border-radius: 12px;
+    padding: 14px;
+    border: 1px solid rgba(25, 135, 84, 0.12);
+}
+
+.metric-box strong {
+    display: block;
+    font-size: 1.2rem;
+    color: #198754;
+}
+
+.btn {
+    border-radius: 30px;
+    transition: transform 0.2s ease;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+}
+
+.form-control,
+.form-select {
+    border-radius: 12px;
+    padding: 0.85rem 1rem;
+    border: 1px solid rgba(25, 135, 84, 0.2);
+}
+
+.alert {
+    border-radius: 12px;
+    margin-top: 1rem;
+}
+
+footer {
+    font-size: 0.9rem;
+}
+
+@media (max-width: 768px) {
+    .hero {
+        text-align: center;
+    }
+
+    .hero h1 {
+        font-size: 2.2rem;
+    }
+}
