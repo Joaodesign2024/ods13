@@ -1,6 +1,4 @@
-import { Redis } from '@upstash/redis';
-
-const redis = Redis.fromEnv();
+import { kv } from '@vercel/kv';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -13,7 +11,7 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === 'GET') {
-      const compromissos = await redis.lrange('compromissos', 0, -1) || [];
+      const compromissos = await kv.lrange('compromissos', 0, -1) || [];
       return res.status(200).json(compromissos);
     }
 
@@ -32,7 +30,7 @@ export default async function handler(req, res) {
         data: new Date().toISOString()
       };
 
-      await redis.lpush('compromissos', novo);
+      await kv.lpush('compromissos', novo);
       return res.status(201).json(novo);
     }
 
