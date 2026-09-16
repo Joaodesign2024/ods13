@@ -464,6 +464,12 @@ function App() {
       <footer className="bg-dark text-white text-center py-4">
         <p>Projeto acadêmico — Desenvolvimento Web | UEMA</p>
         <p>ODS 13 — Ação contra a Mudança Global do Clima</p>
+        <p style={{ marginTop: '8px', fontSize: '0.9rem', opacity: 0.9 }}>
+  Projeto desenvolvido por:<br />
+  João Juscelino Melo Pereira<br />
+  João Emanuel Vale Gonçalves<br />
+  Eldivan Pereira
+</p>
       </footer>
     </>
   );
