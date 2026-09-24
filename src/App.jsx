@@ -183,7 +183,7 @@ function App() {
     }
   };
 
-  // --- ALTERADO APENAS AQUI: busca agora pega estado e país ---
+  // Busca com cidade - estado - país
   const buscarClima = async () => {
     const cidade = cidadeClima.trim();
     if (!cidade) { setClima({ erro: 'Digite o nome de uma cidade antes de buscar.' }); return; }
@@ -194,27 +194,23 @@ function App() {
       if (!geocodeResponse.ok) throw new Error('Cidade não encontrada.');
       const geocodeData = await geocodeResponse.json();
       if (!geocodeData.results || geocodeData.results.length === 0) throw new Error('Cidade não encontrada.');
-      
       const resultado = geocodeData.results[0];
-      const { latitude, longitude, name, admin1, country, country_code, timezone } = resultado;
-      
-      const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code&timezone=${encodeURIComponent(timezone)}`;
+      const { latitude, longitude, name, admin1, country } = resultado;
+      const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code&timezone=auto`;
       const weatherResponse = await fetch(weatherUrl);
       if (!weatherResponse.ok) throw new Error('Não foi possível obter os dados climáticos.');
       const weatherData = await weatherResponse.json();
       const current = weatherData.current;
       const weatherLabel = weatherCodes[current.weather_code] || 'Condição variada';
-      
       setClima({ 
         name, 
         estado: admin1 || '', 
         country, 
-        country_code,
         temperatura: current.temperature_2m, 
         sensacao: current.apparent_temperature, 
         umidade: current.relative_humidity_2m, 
         condicao: weatherLabel, 
-        timezone 
+        timezone: weatherData.timezone || resultado.timezone
       });
     } catch (error) { setClima({ erro: error.message || 'Erro ao consultar o clima.' }); }
     finally { setLoadingClima(false); }
@@ -307,15 +303,13 @@ function App() {
                       <><h3>Erro ao consultar o clima</h3><p>{clima.erro}</p></>
                     ) : (
                       <>
-                        {/* ALTERADO: agora mostra cidade - estado - país */}
-                        <h3>{clima.name}{clima.estado ? ` - ${clima.estado}` : ''} - {clima.country}</h3>
+                        <h3>{clima.name} - {clima.estado} - {clima.country}</h3>
                         <p><strong>{clima.temperatura}°C</strong> | {clima.condicao}</p>
                         <div className="result-metrics">
                           <div className="metric-box"><span>Sensação térmica</span><strong>{clima.sensacao}°C</strong></div>
                           <div className="metric-box"><span>Umidade</span><strong>{clima.umidade}%</strong></div>
                           <div className="metric-box"><span>Fuso</span><strong>{clima.timezone}</strong></div>
                         </div>
-                        <small className="text-muted d-block mt-2">📍 {clima.name}, {clima.estado} - {clima.country} ({clima.country_code})</small>
                       </>
                     )
                   ) : (
