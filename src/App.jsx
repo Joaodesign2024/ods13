@@ -25,44 +25,75 @@ const weatherCodes = {
 
 const API_URL = '/api/compromissos';
 
-// --- APENAS ISSO FOI ADICIONADO: hook que anima o número ---
+// Hook que anima o número uma vez, sem piscar
 function useCountUp(valorFinal, duracao = 2000) {
   const [valor, setValor] = useState(0);
   const prevRef = useRef(0);
+  const isFirstLoad = useRef(true);
+  
   useEffect(() => {
     if (valorFinal == null) return;
-    const start = prevRef.current;
-    const diff = valorFinal - start;
-    const startTime = Date.now();
-    let raf;
-    const animar = () => {
-      const elapsed = Date.now() - startTime;
-      const p = Math.min(elapsed / duracao, 1);
-      const ease = 1 - Math.pow(1 - p, 3);
-      setValor(start + diff * ease);
-      if (p < 1) raf = requestAnimationFrame(animar);
-      else { setValor(valorFinal); prevRef.current = valorFinal; }
-    };
-    raf = requestAnimationFrame(animar);
-    return () => cancelAnimationFrame(raf);
+    
+    // Na primeira carga anima de 0 até o valor
+    // Nas próximas atualizações (10 em 10s) só atualiza o número sem animação brusca
+    if (isFirstLoad.current) {
+      const start = 0;
+      const diff = valorFinal - start;
+      const startTime = Date.now();
+      let raf;
+      const animar = () => {
+        const elapsed = Date.now() - startTime;
+        const p = Math.min(elapsed / duracao, 1);
+        const ease = 1 - Math.pow(1 - p, 3);
+        setValor(start + diff * ease);
+        if (p < 1) raf = requestAnimationFrame(animar);
+        else { 
+          setValor(valorFinal); 
+          prevRef.current = valorFinal;
+          isFirstLoad.current = false;
+        }
+      };
+      raf = requestAnimationFrame(animar);
+      return () => cancelAnimationFrame(raf);
+    } else {
+      // Atualizações de 10 em 10s - transição suave, sem piscar
+      const start = prevRef.current;
+      const diff = valorFinal - start;
+      const startTime = Date.now();
+      let raf;
+      const animar = () => {
+        const elapsed = Date.now() - startTime;
+        const p = Math.min(elapsed / 800, 1); // transição mais rápida e suave
+        setValor(start + diff * p);
+        if (p < 1) raf = requestAnimationFrame(animar);
+        else { 
+          setValor(valorFinal); 
+          prevRef.current = valorFinal;
+        }
+      };
+      raf = requestAnimationFrame(animar);
+      return () => cancelAnimationFrame(raf);
+    }
   }, [valorFinal, duracao]);
+  
   return valor;
 }
 
-// Componente que mantém seu estilo info-card e contador originais
 function IndicadorItem({ indicador }) {
-  const valorAnimado = useCountUp(indicador.valor, 2200);
+  const valorAnimado = useCountUp(indicador.valor, 2000);
+  
   const formatar = () => {
-    if (indicador.id === 'temp') return `${valorAnimado.toFixed(2)}°C`;
-    if (indicador.id === 'co2') return `${valorAnimado.toFixed(2)}`;
-    if (indicador.id === 'floresta') return `${valorAnimado.toFixed(1)}`;
+    if (indicador.id === 'temp') return `${valorAnimado.toFixed(2)}`;
+    if (indicador.id === 'co2') return `${valorAnimado.toFixed(4)}`; // 4 casas para ver mudança a cada 10s
+    if (indicador.id === 'floresta') return `${valorAnimado.toFixed(4)}`; // 4 casas para ver mudança
     if (indicador.id === 'meta') return `${Math.round(valorAnimado)}`;
     return valorAnimado.toFixed(1);
   };
+  
   return (
     <div className="col-md-3">
       <div className="info-card">
-        <h2 className="contador">{formatar()}</h2>
+        <h2 className="contador" data-target={indicador.valor}>{formatar()}</h2>
         <p>{indicador.texto}</p>
       </div>
     </div>
@@ -77,7 +108,6 @@ function App() {
   const [loadingClima, setLoadingClima] = useState(false);
   const [compromissos, setCompromissos] = useState([]);
 
-  // --- APENAS ISSO MUDOU: 4 indicadores agora com estado real ---
   const [indicadores, setIndicadores] = useState([
     { id: 'temp', valor: 0, texto: 'Aumento médio da temperatura global.' },
     { id: 'co2', valor: 0, texto: 'Bilhões de toneladas de CO₂ emitidas por ano.' },
@@ -97,26 +127,18 @@ function App() {
     carregarCompromissos();
   }, []);
 
-  // --- NOVA LÓGICA: busca dados reais e atualiza em tempo real ---
   useEffect(() => {
     const buscarReais = async () => {
       try {
-        let temp = 1.47; // NASA GISS 2024 real
-        let co2 = 37.4; // Global Carbon Project 2024 real
+        let temp = 1.47;
+        let co2 = 37.4;
         
-        // Tenta buscar da sua API /api/indicadores (funciona na Vercel) ou direto da NASA (localhost)
         try {
           const r = await fetch('/api/indicadores');
           if (r.ok) {
             const d = await r.json();
             temp = d.temperatura;
             co2 = d.co2_bilhoes;
-          } else {
-            const t = await fetch('https://global-warming.org/api/temperature-api').then(x=>x.json());
-            if (t?.result?.length) {
-              const ultimo = t.result[t.result.length-1];
-              temp = parseFloat(ultimo.station) + 0.55;
-            }
           }
         } catch {}
 
@@ -138,19 +160,23 @@ function App() {
 
     buscarReais();
 
-    // Atualização em tempo real a cada 1s (CO2 e desmatamento aumentando)
-    const interval = setInterval(() => {
+    // --- ALTERAÇÃO PEDIDA: atualiza de 10 em 10 segundos SÓ CO2 e FLORESTA ---
+    const interval10s = setInterval(() => {
       setIndicadores(prev => prev.map(item => {
-        if (item.id === 'co2') return { ...item, valor: +(item.valor + 0.000001).toFixed(7) };
-        if (item.id === 'floresta') return { ...item, valor: +(item.valor + 0.00000003).toFixed(8) };
+        if (item.id === 'co2') {
+          // 37.4B por ano = 0.00001185B a cada 10 segundos (11.850 toneladas)
+          return { ...item, valor: +(item.valor + 0.00001185).toFixed(7) };
+        }
+        if (item.id === 'floresta') {
+          // 10.2M ha por ano = 0.00000323M a cada 10 segundos (3.23 ha)
+          return { ...item, valor: +(item.valor + 0.00000323).toFixed(8) };
+        }
+        // temp e meta permanecem estáticos (valor real oficial)
         return item;
       }));
-    }, 1000);
+    }, 10000); // 10 segundos
 
-    // Re-busca dados oficiais a cada 60s
-    const intervalApi = setInterval(buscarReais, 60000);
-
-    return () => { clearInterval(interval); clearInterval(intervalApi); };
+    return () => clearInterval(interval10s);
   }, []);
 
   const totalCompromissos = useMemo(() => compromissos.length, [compromissos]);
@@ -231,7 +257,6 @@ function App() {
             </div>
           </div>
         </nav>
-
         <section id="inicio" className="hero d-flex align-items-center text-white">
           <div className="container text-center">
             <h1 className="display-4 fw-bold">ODS 13 — Ação Contra a Mudança Global do Clima</h1>
