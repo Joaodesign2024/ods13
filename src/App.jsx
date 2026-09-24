@@ -25,17 +25,12 @@ const weatherCodes = {
 
 const API_URL = '/api/compromissos';
 
-// Hook que anima o número uma vez, sem piscar
 function useCountUp(valorFinal, duracao = 2000) {
   const [valor, setValor] = useState(0);
   const prevRef = useRef(0);
   const isFirstLoad = useRef(true);
-  
   useEffect(() => {
     if (valorFinal == null) return;
-    
-    // Na primeira carga anima de 0 até o valor
-    // Nas próximas atualizações (10 em 10s) só atualiza o número sem animação brusca
     if (isFirstLoad.current) {
       const start = 0;
       const diff = valorFinal - start;
@@ -47,49 +42,38 @@ function useCountUp(valorFinal, duracao = 2000) {
         const ease = 1 - Math.pow(1 - p, 3);
         setValor(start + diff * ease);
         if (p < 1) raf = requestAnimationFrame(animar);
-        else { 
-          setValor(valorFinal); 
-          prevRef.current = valorFinal;
-          isFirstLoad.current = false;
-        }
+        else { setValor(valorFinal); prevRef.current = valorFinal; isFirstLoad.current = false; }
       };
       raf = requestAnimationFrame(animar);
       return () => cancelAnimationFrame(raf);
     } else {
-      // Atualizações de 10 em 10s - transição suave, sem piscar
       const start = prevRef.current;
       const diff = valorFinal - start;
       const startTime = Date.now();
       let raf;
       const animar = () => {
         const elapsed = Date.now() - startTime;
-        const p = Math.min(elapsed / 800, 1); // transição mais rápida e suave
+        const p = Math.min(elapsed / 800, 1);
         setValor(start + diff * p);
         if (p < 1) raf = requestAnimationFrame(animar);
-        else { 
-          setValor(valorFinal); 
-          prevRef.current = valorFinal;
-        }
+        else { setValor(valorFinal); prevRef.current = valorFinal; }
       };
       raf = requestAnimationFrame(animar);
       return () => cancelAnimationFrame(raf);
     }
   }, [valorFinal, duracao]);
-  
   return valor;
 }
 
 function IndicadorItem({ indicador }) {
   const valorAnimado = useCountUp(indicador.valor, 2000);
-  
   const formatar = () => {
     if (indicador.id === 'temp') return `${valorAnimado.toFixed(2)}`;
-    if (indicador.id === 'co2') return `${valorAnimado.toFixed(4)}`; // 4 casas para ver mudança a cada 10s
-    if (indicador.id === 'floresta') return `${valorAnimado.toFixed(4)}`; // 4 casas para ver mudança
+    if (indicador.id === 'co2') return `${valorAnimado.toFixed(4)}`;
+    if (indicador.id === 'floresta') return `${valorAnimado.toFixed(4)}`;
     if (indicador.id === 'meta') return `${Math.round(valorAnimado)}`;
     return valorAnimado.toFixed(1);
   };
-  
   return (
     <div className="col-md-3">
       <div className="info-card">
@@ -132,7 +116,6 @@ function App() {
       try {
         let temp = 1.47;
         let co2 = 37.4;
-        
         try {
           const r = await fetch('/api/indicadores');
           if (r.ok) {
@@ -141,7 +124,6 @@ function App() {
             co2 = d.co2_bilhoes;
           }
         } catch {}
-
         setIndicadores([
           { id: 'temp', valor: temp, texto: 'Aumento médio da temperatura global.' },
           { id: 'co2', valor: co2, texto: 'Bilhões de toneladas de CO₂ emitidas por ano.' },
@@ -157,35 +139,22 @@ function App() {
         ]);
       }
     };
-
     buscarReais();
-
-    // --- ALTERAÇÃO PEDIDA: atualiza de 10 em 10 segundos SÓ CO2 e FLORESTA ---
     const interval10s = setInterval(() => {
       setIndicadores(prev => prev.map(item => {
-        if (item.id === 'co2') {
-          // 37.4B por ano = 0.00001185B a cada 10 segundos (11.850 toneladas)
-          return { ...item, valor: +(item.valor + 0.00001185).toFixed(7) };
-        }
-        if (item.id === 'floresta') {
-          // 10.2M ha por ano = 0.00000323M a cada 10 segundos (3.23 ha)
-          return { ...item, valor: +(item.valor + 0.00000323).toFixed(8) };
-        }
-        // temp e meta permanecem estáticos (valor real oficial)
+        if (item.id === 'co2') return { ...item, valor: +(item.valor + 0.00001185).toFixed(7) };
+        if (item.id === 'floresta') return { ...item, valor: +(item.valor + 0.00000323).toFixed(8) };
         return item;
       }));
-    }, 10000); // 10 segundos
-
+    }, 10000);
     return () => clearInterval(interval10s);
   }, []);
 
   const totalCompromissos = useMemo(() => compromissos.length, [compromissos]);
-
   const handleChange = (event) => {
     const { name, value } = event.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
-
   const handleSubmit = async (event) => {
     event.preventDefault();
     const nome = formData.nome.trim();
@@ -214,6 +183,7 @@ function App() {
     }
   };
 
+  // --- ALTERADO APENAS AQUI: busca agora pega estado e país ---
   const buscarClima = async () => {
     const cidade = cidadeClima.trim();
     if (!cidade) { setClima({ erro: 'Digite o nome de uma cidade antes de buscar.' }); return; }
@@ -224,14 +194,28 @@ function App() {
       if (!geocodeResponse.ok) throw new Error('Cidade não encontrada.');
       const geocodeData = await geocodeResponse.json();
       if (!geocodeData.results || geocodeData.results.length === 0) throw new Error('Cidade não encontrada.');
-      const { latitude, longitude, name, country, timezone } = geocodeData.results[0];
+      
+      const resultado = geocodeData.results[0];
+      const { latitude, longitude, name, admin1, country, country_code, timezone } = resultado;
+      
       const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code&timezone=${encodeURIComponent(timezone)}`;
       const weatherResponse = await fetch(weatherUrl);
       if (!weatherResponse.ok) throw new Error('Não foi possível obter os dados climáticos.');
       const weatherData = await weatherResponse.json();
       const current = weatherData.current;
       const weatherLabel = weatherCodes[current.weather_code] || 'Condição variada';
-      setClima({ name, country, temperatura: current.temperature_2m, sensacao: current.apparent_temperature, umidade: current.relative_humidity_2m, condicao: weatherLabel, timezone });
+      
+      setClima({ 
+        name, 
+        estado: admin1 || '', 
+        country, 
+        country_code,
+        temperatura: current.temperature_2m, 
+        sensacao: current.apparent_temperature, 
+        umidade: current.relative_humidity_2m, 
+        condicao: weatherLabel, 
+        timezone 
+      });
     } catch (error) { setClima({ erro: error.message || 'Erro ao consultar o clima.' }); }
     finally { setLoadingClima(false); }
   };
@@ -316,7 +300,27 @@ function App() {
               </div>
               <div className="col-lg-6">
                 <div className="result-card" aria-live="polite">
-                  {loadingClima ? (<><h3>Consultando...</h3><p>Buscando dados climáticos...</p></>) : clima ? (clima.erro ? (<><h3>Erro ao consultar o clima</h3><p>{clima.erro}</p></>) : (<><h3>{clima.name} - {clima.country}</h3><p><strong>{clima.temperatura}°C</strong> | {clima.condicao}</p><div className="result-metrics"><div className="metric-box"><span>Sensação térmica</span><strong>{clima.sensacao}°C</strong></div><div className="metric-box"><span>Umidade</span><strong>{clima.umidade}%</strong></div><div className="metric-box"><span>Fuso</span><strong>{clima.timezone}</strong></div></div></>)) : (<><h3>Previsão atual</h3><p>Informe uma cidade para consultar o clima atual.</p></>)}
+                  {loadingClima ? (
+                    <><h3>Consultando...</h3><p>Buscando dados climáticos...</p></>
+                  ) : clima ? (
+                    clima.erro ? (
+                      <><h3>Erro ao consultar o clima</h3><p>{clima.erro}</p></>
+                    ) : (
+                      <>
+                        {/* ALTERADO: agora mostra cidade - estado - país */}
+                        <h3>{clima.name}{clima.estado ? ` - ${clima.estado}` : ''} - {clima.country}</h3>
+                        <p><strong>{clima.temperatura}°C</strong> | {clima.condicao}</p>
+                        <div className="result-metrics">
+                          <div className="metric-box"><span>Sensação térmica</span><strong>{clima.sensacao}°C</strong></div>
+                          <div className="metric-box"><span>Umidade</span><strong>{clima.umidade}%</strong></div>
+                          <div className="metric-box"><span>Fuso</span><strong>{clima.timezone}</strong></div>
+                        </div>
+                        <small className="text-muted d-block mt-2">📍 {clima.name}, {clima.estado} - {clima.country} ({clima.country_code})</small>
+                      </>
+                    )
+                  ) : (
+                    <><h3>Previsão atual</h3><p>Informe uma cidade para consultar o clima atual.</p></>
+                  )}
                 </div>
               </div>
             </div>
